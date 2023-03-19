@@ -8,6 +8,7 @@ from aiohttp.web import (
 
 from app.admin.models import Admin
 from app.store import setup_store, Store
+from app.store.admin.accessor import AdminAccessor
 from app.store.database.database import Database
 from app.web.config import Config, setup_config
 from app.web.logger import setup_logging
@@ -16,6 +17,9 @@ from app.web.routes import setup_routes
 
 
 class Application(AiohttpApplication):
+
+    adminAccessor: Optional[AdminAccessor] = None
+
     config: Optional[Config] = None
     store: Optional[Store] = None
     database: Optional[Database] = None
@@ -42,6 +46,10 @@ class View(AiohttpView):
     def data(self) -> dict:
         return self.request.get("data", {})
 
+    @property
+    def database(self):
+        return self.request.app.database
+
 
 app = Application()
 
@@ -49,7 +57,11 @@ app = Application()
 def setup_app(config_path: str) -> Application:
     setup_logging(app)
     setup_config(app, config_path)
+    session_setup(app, EncryptedCookieStorage(app.config.session.key))
     setup_routes(app)
+    setup_aiohttp_apispec(
+        app, title="Vk Quiz Bot", url="/docs/json", swagger_path="/docs"
+    )
     setup_middlewares(app)
     setup_store(app)
     return app
